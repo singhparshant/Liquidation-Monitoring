@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BinanceOrder {
     s: String,  // Symbol
     S: String,  // Side
@@ -15,9 +15,13 @@ pub struct BinanceOrder {
     T: u64,     // Order Trade Time
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BinanceMessage {
     e: String,       // Event Type
     E: u64,          // Event Time
     o: BinanceOrder, // Order
 }
+
+// impl<&str> From<&str> for BinanceMessage {
+//     fn from(value: BinanceMessage) -> Self {}
+// }

@@ -1,1 +1,3 @@
 /target
+/liquidations-monitoring-frontend/node_modules
+/liquidations-monitoring-frontend/.next

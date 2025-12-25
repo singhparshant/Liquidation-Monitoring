@@ -1,8 +1,10 @@
+use std::thread::spawn;
+
 use tokio::sync::broadcast;
 
 use crate::types::BinanceMessage;
 
-struct UpstreamWebsocket {
+pub struct UpstreamWebsocket {
     pub liquidations: broadcast::Sender<BinanceMessage>,
 }
 
@@ -11,5 +13,5 @@ impl UpstreamWebsocket {
         Self { liquidations }
     }
 
-    pub fn connect(url: &str) {}
+    pub fn connect_and_send(&self, url: &str) {}
 }
