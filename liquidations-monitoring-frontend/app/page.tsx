@@ -1,9 +1,16 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { WebSocketLike } from "react-use-websocket/dist/lib/types";
+import {
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+  type PaginationState,
+} from "@tanstack/react-table";
 
 
 interface BinanceOrder {
@@ -26,11 +33,17 @@ interface BinanceMessage {
   o: BinanceOrder;
 }
 
+type RowData = { id: string; msg: BinanceMessage };
+
 export default function Home() {
   
   const wsRef = useRef<WebSocketLike | null>(null);
   const msgSeqRef = useRef(0);
-  const [messages, setMessages] = useState<Array<{ id: string; msg: BinanceMessage }>>([]);
+  const [messages, setMessages] = useState<RowData[]>([]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 20,
+  });
 
   const formatTime = (ms: number) => new Date(ms).toLocaleString();
   const sideBadgeClass = (side: string) =>
@@ -71,24 +84,137 @@ export default function Home() {
       }
     };
   }, []);
+
+  const columns = useMemo<Array<ColumnDef<RowData>>>(() => {
+    return [
+      {
+        id: "time",
+        header: "Time",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+            {formatTime(row.original.msg.o.T)}
+          </span>
+        ),
+      },
+      {
+        id: "symbol",
+        header: "Symbol",
+        cell: ({ row }) => (
+          <span className="font-semibold">{row.original.msg.o.s}</span>
+        ),
+      },
+      {
+        id: "side",
+        header: "Side",
+        cell: ({ row }) => (
+          <span
+            className={[
+              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset",
+              sideBadgeClass(row.original.msg.o.S),
+            ].join(" ")}
+          >
+            {row.original.msg.o.S}
+          </span>
+        ),
+      },
+      { id: "type", header: "Type", cell: ({ row }) => row.original.msg.o.o },
+      {
+        id: "tif",
+        header: "TIF",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs">{row.original.msg.o.f}</span>
+        ),
+      },
+      {
+        id: "qty",
+        header: () => <span className="block text-right">Qty</span>,
+        cell: ({ row }) => (
+          <span className="block text-right font-mono">
+            {row.original.msg.o.q}
+          </span>
+        ),
+      },
+      {
+        id: "price",
+        header: () => <span className="block text-right">Price</span>,
+        cell: ({ row }) => (
+          <span className="block text-right font-mono">
+            {row.original.msg.o.p}
+          </span>
+        ),
+      },
+      {
+        id: "avg",
+        header: () => <span className="block text-right">Avg</span>,
+        cell: ({ row }) => (
+          <span className="block text-right font-mono">
+            {row.original.msg.o.ap}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <span
+            className={[
+              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset",
+              statusBadgeClass(row.original.msg.o.X),
+            ].join(" ")}
+          >
+            {row.original.msg.o.X}
+          </span>
+        ),
+      },
+      {
+        id: "last",
+        header: () => <span className="block text-right">Last</span>,
+        cell: ({ row }) => (
+          <span className="block text-right font-mono">
+            {row.original.msg.o.l}
+          </span>
+        ),
+      },
+      {
+        id: "filled",
+        header: () => <span className="block text-right">Filled</span>,
+        cell: ({ row }) => (
+          <span className="block text-right font-mono">
+            {row.original.msg.o.z}
+          </span>
+        ),
+      },
+    ];
+  }, []);
+
+  const table = useReactTable({
+    data: messages,
+    columns,
+    state: { pagination },
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-6xl flex-col gap-6 py-16 px-4 bg-white dark:bg-black sm:px-8">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Image
-              className="dark:invert"
-              src="/next.svg"
-              alt="Next.js logo"
-              width={96}
-              height={20}
-              priority
-            />
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">
+            <div className="text-sm text-zinc-600 dark:text-zinc-300 inline-flex items-center gap-2">
+              <span
+                className={[
+                  "h-2.5 w-2.5 rounded-full ring-2 ring-inset animate-pulse",
+                  readyState === 1
+                    ? "bg-emerald-500 ring-emerald-200 dark:ring-emerald-900"
+                    : "bg-rose-500 ring-rose-200 dark:ring-rose-900",
+                ].join(" ")}
+                aria-label={readyState === 1 ? "WebSocket connected" : "WebSocket disconnected"}
+                title={readyState === 1 ? "connected" : "disconnected"}
+              />
               WS:{" "}
               <span className="font-mono">
-                {readyState === 1 ? "connected" : readyState}
+                {readyState === 1 ? "Connected" : `Disconnected`}
               </span>
             </div>
           </div>
@@ -101,60 +227,62 @@ export default function Home() {
           <table className="min-w-[980px] w-full text-sm">
             <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
               <tr className="[&>th]:px-3 [&>th]:py-3 [&>th]:text-left">
-                <th>Time</th>
-                <th>Symbol</th>
-                <th>Side</th>
-                <th>Type</th>
-                <th>TIF</th>
-                <th className="text-right">Qty</th>
-                <th className="text-right">Price</th>
-                <th className="text-right">Avg</th>
-                <th>Status</th>
-                <th className="text-right">Last</th>
-                <th className="text-right">Filled</th>
+                {table.getHeaderGroups().map((headerGroup) =>
+                  headerGroup.headers.map((header) => (
+                    <th key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
-              {messages.map(({ id, msg: m }) => (
+              {table.getRowModel().rows.map((row) => (
                 <tr
-                  key={id}
+                  key={row.original.id}
                   className="odd:bg-white even:bg-zinc-50 hover:bg-zinc-100 dark:odd:bg-black dark:even:bg-zinc-950 dark:hover:bg-zinc-900"
                 >
-                  <td className="px-3 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    {formatTime(m.o.T)}
-                  </td>
-                  <td className="px-3 py-2 font-semibold">{m.o.s}</td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={[
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                        sideBadgeClass(m.o.S),
-                      ].join(" ")}
-                    >
-                      {m.o.S}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">{m.o.o}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{m.o.f}</td>
-                  <td className="px-3 py-2 text-right font-mono">{m.o.q}</td>
-                  <td className="px-3 py-2 text-right font-mono">{m.o.p}</td>
-                  <td className="px-3 py-2 text-right font-mono">{m.o.ap}</td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={[
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                        statusBadgeClass(m.o.X),
-                      ].join(" ")}
-                    >
-                      {m.o.X}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono">{m.o.l}</td>
-                  <td className="px-3 py-2 text-right font-mono">{m.o.z}</td>
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-3 py-2">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">
+            Page{" "}
+            <span className="font-mono">
+              {table.getState().pagination.pageIndex + 1}
+            </span>{" "}
+            of{" "}
+            <span className="font-mono">{table.getPageCount()}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-200"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Prev
+            </button>
+            <button
+              className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-200"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </main>
     </div>
