@@ -3,7 +3,7 @@ use axum::{
         State,
         ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
     },
-    response::{Html, Response},
+    response::Response,
 };
 
 use crate::state::AppState;
@@ -17,13 +17,15 @@ async fn handle_socket(mut socket: WebSocket, state: State<AppState>) {
     while let Ok(value) = rx.recv().await {
         let text = match serde_json::to_string(&value) {
             Ok(text) => text,
-            Err(_) => {
-                eprintln!("Could not deserialise binance message: {:?}", value);
+            Err(e) => {
+                eprintln!(
+                    "Could not serialize liquidation event: {:?}, error: {}",
+                    value, e
+                );
                 continue;
             }
         };
         let bytes: Utf8Bytes = text.into();
-        // let (sx, rs) = socket.split();
         if socket.send(Message::Text(bytes)).await.is_err() {
             break;
         }

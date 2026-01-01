@@ -1,17 +1,19 @@
-use std::thread::spawn;
-
 use tokio::sync::broadcast;
 
-use crate::types::BinanceMessage;
+use crate::types::LiquidationEvent;
 
+#[allow(dead_code)]
 pub struct UpstreamWebsocket {
-    pub liquidations: broadcast::Sender<BinanceMessage>,
+    pub liquidations: broadcast::Sender<LiquidationEvent>,
 }
 
+#[allow(dead_code)]
 impl UpstreamWebsocket {
-    pub fn new(&mut self, liquidations: broadcast::Sender<BinanceMessage>) -> Self {
+    pub fn new(liquidations: broadcast::Sender<LiquidationEvent>) -> Self {
         Self { liquidations }
     }
 
-    pub fn connect_and_send(&self, url: &str) {}
+    pub fn connect_and_send(&self, _url: &str) {
+        // TODO: Implement generic websocket connection logic
+    }
 }
